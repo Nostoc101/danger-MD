@@ -16,7 +16,7 @@ const OWNER_NAME = "Nostoc 😈";
 const BOT_NAME = "DANGER-MD";
 const PREFIX = "."; 
 const PORT = process.env.PORT || 10000; 
-const TARGET_PHONE = "2348142334779"; // USER PHONE INTEGRATED DIRECTLY
+const TARGET_PHONE = "2348142334779"; // YOUR LOCKED PHONE IDENTITY
 
 const THEME = {
     banner: `
@@ -76,7 +76,7 @@ async function loadSystemArchitecture() {
     commands.set('ping', {
         name: 'ping',
         adminOnly: false,
-        execute: () => `🚀 [danger-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nTARGET : ${TARGET_PHONE}`
+        execute: () => `🚀 [DANGER-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nTARGET : ${TARGET_PHONE}`
     });
 
     // ------------------------------------------------------------
@@ -144,7 +144,7 @@ async function loadSystemArchitecture() {
     bugCommandsList.forEach(bug => {
         commands.set(bug.trigger, {
             name: bug.trigger,
-            adminOnly: true, // Only your locked target phone number can execute these
+            adminOnly: true,
             execute: () => executeBugSimulation(bug.type)
         });
     });
@@ -180,8 +180,8 @@ async function connectToWhatsApp() {
     
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false, // Prevents giant QR code output from cluttering logs
-        browser: Browsers.macOS('Safari'), // Web client specification targets reliable pairing execution
+        printQRInTerminal: false,
+        browser: Browsers.macOS('Safari'),
         auth: state
     });
 
@@ -203,9 +203,14 @@ async function connectToWhatsApp() {
             } catch (pairingError) {
                 console.error(`${THEME.prefix} Failed to generate numerical pairing code:`, pairingError);
             }
-        }, 5000); // 5-second buffer to stabilize network before code generation call
+        }, 5000);
     }
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            console.log(`${THEME.prefix} Connection closed. Reconnecting: ${shouldReconnect}`);
+            if (shouldReconnect) {
+                connectToWhatsApp();
+            }
