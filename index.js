@@ -65,7 +65,6 @@ function loadSystemArchitecture() {
         execute: () => `🚀 [DANGER-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nTARGET : ${TARGET_PHONE}`
     });
 
-    // Compressed 55 Bug Triggers Mapping Matrix Loop
     const bugs = [
         'test', 'crash', 'leak', 'cpu', 'slow', 'timeout', 'db', 'auth', 'race', 'corrupt',
         'overflow', 'unhandled', 'env', 'perm', 'deadlock', 'null', 'json', 'dep', 'infinite',
@@ -138,7 +137,7 @@ async function connectToWhatsApp() {
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         if (!messages || messages.length === 0) return;
-        const msg = messages[0]; 
+        const msg = messages[0]; // FIX: Safely extract the message object from the collection array
         if (!msg.message || msg.key.fromMe) return;
 
         const senderNumber = msg.key.remoteJid.replace('@s.whatsapp.net', '');
