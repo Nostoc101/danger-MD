@@ -10,23 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ==========================================
-// CLI ARGUMENT PARSER (For npm scripts)
-// ==========================================
-const argsEnv = process.argv.find(arg => arg.startsWith('--cmd='));
-if (argsEnv) {
-    const cmdAction = argsEnv.split('=')[1];
-    console.log(`⚠️ [CLI://SYSTEM_TEST] Running isolation test for: ${cmdAction}`);
-    // If run via terminal command script, execute logic here or proceed to boot
-}
-
-// ==========================================
 // CORE IDENTITY & SECURITY PROTOCOLS - NOSTOC-MD
 // ==========================================
 const OWNER_NAME = "Nostoc 😈";
-const BOT_NAME = "Nostoc-MD";
+const BOT_NAME = "danger-MD";
 const PREFIX = "."; 
 const PORT = process.env.PORT || 10000; 
-const TARGET_PHONE = "2348142334779"; // YOUR NUMBER LOCKED
+const TARGET_PHONE = "2348142334779"; // USER PHONE INTEGRATED DIRECTLY
 
 const THEME = {
     banner: `
@@ -38,7 +28,7 @@ const THEME = {
 > AUTHORIZED OPERATOR: ${OWNER_NAME.toUpperCase()}
 > TARGET NUMBER: ${TARGET_PHONE}
 ------------------------------------------------------------`,
-    prefix: `[NOSTOC-MD://DIABLO]`,
+    prefix: `[danger-MD://DIABLO]`,
     line: `----------------------------------------`,
     securityAlert: `❌ [SECURITY://ACCESS_DENIED]\n> PRIVILEGE ENFORCEMENT PROTOCOL ACTIVATED.\n> ONLY ${TARGET_PHONE} CAN USE ADMIN COMMANDS`
 };
@@ -46,6 +36,28 @@ const THEME = {
 const commands = new Map();
 const cooldowns = new Map();
 let sockGlobal;
+
+// ==========================================
+// BUG UTILITY INTERNALS
+// ==========================================
+function executeBugSimulation(type) {
+    console.log(`[BUG:EXECUTIONER] Injecting payload for simulation: ${type}`);
+    switch (type) {
+        case 'force-crash':
+            setTimeout(() => { process.exit(1); }, 1000);
+            return "💀 [CRASH_DEPLOYED] Server will terminate in 1 second.";
+        case 'memory-leak':
+            const leakArray = [];
+            for (let i = 0; i < 50000; i++) { leakArray.push(new Array(100).fill('leak')); }
+            return "💧 [LEAK_DEPLOYED] Flooded memory heap allocation arrays.";
+        case 'cpu-spike':
+            const end = Date.now() + 2000;
+            while (Date.now() < end) { Math.random() * Math.random(); }
+            return "⚡ [CPU_SPIKE] Forced single-thread execution spike for 2000ms.";
+        default:
+            return `💀 [DIABLO://BUG_DEPLOYED]\nACTION: ${type.toUpperCase()}\nTARGET: STABLE_SESSION\nSTATUS: INJECTED SUCCESSFULLY.`;
+    }
+}
 
 // ==========================================
 // LOAD COMMAND MATRIX
@@ -57,16 +69,14 @@ async function loadSystemArchitecture() {
     // Built-in Core
     commands.set('status', {
         name: 'status',
-        cooldown: 1000,
         adminOnly: false,
         execute: () => `BOT : ${BOT_NAME}\nSTATUS : OPERATIONAL\nINTEGRITY: 100%\nOPERATOR : ${OWNER_NAME}\nNUMBER : ${TARGET_PHONE}`
     });
 
     commands.set('ping', {
         name: 'ping',
-        cooldown: 1000,
         adminOnly: false,
-        execute: () => `🚀 [NOSTOC-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nTARGET : ${TARGET_PHONE}`
+        execute: () => `🚀 [danger-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nTARGET : ${TARGET_PHONE}`
     });
 
     // ------------------------------------------------------------
@@ -130,18 +140,17 @@ async function loadSystemArchitecture() {
         { trigger: 'bug:abortedfetch', type: 'aborted-fetch' }
     ];
 
+    // Inject bug routines directly into system map
     bugCommandsList.forEach(bug => {
         commands.set(bug.trigger, {
             name: bug.trigger,
-            cooldown: 1000,
-            adminOnly: true, // Safety lock: Only you can trigger system debug crashes
-            execute: () => `💀 [DIABLO://BUG_DEPLOYED]\nACTION: ${bug.type.toUpperCase()}\nTARGET: STABLE_SESSION\nSTATUS: INJECTED SUCCESSFULLY.`
+            adminOnly: true, // Only your locked target phone number can execute these
+            execute: () => executeBugSimulation(bug.type)
         });
     });
 
     commands.set('menu', {
         name: 'menu',
-        cooldown: 2000,
         adminOnly: false,
         execute: () => {
             let bugMenuText = `📜 [${BOT_NAME.toUpperCase()} MENU]\n` +
@@ -164,73 +173,39 @@ async function loadSystemArchitecture() {
 }
 
 // ==========================================
-// WHATSAPP CONNECTION LOGIC
+// WHATSAPP CONNECTION LOGIC (PAIRING ENGINE)
 // ==========================================
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
     
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
-        browser: Browsers.macOS('Desktop'),
+        printQRInTerminal: false, // Prevents giant QR code output from cluttering logs
+        browser: Browsers.macOS('Safari'), // Web client specification targets reliable pairing execution
         auth: state
     });
 
     sockGlobal = sock;
 
+    // Automated Pairing Execution Sequence
+    if (!sock.authState.creds.registered) {
+        setTimeout(async () => {
+            try {
+                console.log(`\n${THEME.prefix} Requesting pairing authentication code for: ${TARGET_PHONE}...`);
+                const pairingCode = await sock.requestPairingCode(TARGET_PHONE);
+                const formattedCode = pairingCode?.match(/.{1,4}/g)?.join("-") || pairingCode;
+                
+                console.log(`\n============================================================`);
+                console.log(`🔑 YOUR WHATSAPP PAIRING CODE: ${formattedCode}`);
+                console.log(`============================================================`);
+                console.log(`👉 Go to WhatsApp > Linked Devices > Link a Device > Link with phone number instead`);
+                console.log(`👉 Enter the 8-character code above to link your bot instantly.\n`);
+            } catch (pairingError) {
+                console.error(`${THEME.prefix} Failed to generate numerical pairing code:`, pairingError);
+            }
+        }, 5000); // 5-second buffer to stabilize network before code generation call
+    }
+
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log(`${THEME.prefix} Connection closed. Reconnecting: ${shouldReconnect}`);
-            if (shouldReconnect) {
-                connectToWhatsApp();
-            }
-        } else if (connection === 'open') {
-            console.log(`${THEME.prefix} Connection opened successfully!`);
-        }
-    });
-
-    sock.ev.on('creds.update', saveCreds);
-
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0]; 
-        if (!msg || !msg.message || msg.key.fromMe) return;
-
-        const senderNumber = msg.key.remoteJid.replace('@s.whatsapp.net', '');
-        const messageType = Object.keys(msg.message)[0]; 
-        let text = '';
-
-        if (messageType === 'conversation') {
-            text = msg.message.conversation;
-        } else if (messageType === 'extendedTextMessage') {
-            text = msg.message.extendedTextMessage.text;
-        }
-
-        if (!text.startsWith(PREFIX)) return;
-
-        const args = text.slice(PREFIX.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-
-        const command = commands.get(commandName);
-        if (!command) return;
-
-        if (command.adminOnly && senderNumber !== TARGET_PHONE) {
-            await sock.sendMessage(msg.key.remoteJid, { text: THEME.securityAlert });
-            return;
-        }
-
-        try {
-            const response = command.execute();
-            await sock.sendMessage(msg.key.remoteJid, { text: response });
-        } catch (error) {
-            console.error('Error executing command:', error);
-        }
-    });
-}
-
-// ==========================================
-// EXPRESS KEEP-ALIVE SERVER
-// ==========================================
-const app = express();
-app.get('/', (req, res) => {
