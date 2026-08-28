@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 // CORE IDENTITY & SECURITY PROTOCOLS - NOSTOC-MD
 // ==========================================
 const OWNER_NAME = "Nostoc 😈";
-const BOT_NAME = "danger-MD";
+const BOT_NAME = "DANGER-MD";
 const PREFIX = "."; 
 const PORT = process.env.PORT || 10000; 
 const TARGET_PHONE = "2348142334779"; // USER PHONE INTEGRATED DIRECTLY
@@ -23,12 +23,12 @@ const THEME = {
 ============================================================
     🔥  D I A B L O   M O D E   A C T I V A T E D  🔥
 ============================================================
-[NOSTOC-MD SYSTEM // VERSION 7.0.0]
+[DANGER-MD SYSTEM // VERSION 7.0.0]
 > INTEGRATED ADMIN LOCK: ENGAGED
 > AUTHORIZED OPERATOR: ${OWNER_NAME.toUpperCase()}
 > TARGET NUMBER: ${TARGET_PHONE}
 ------------------------------------------------------------`,
-    prefix: `[danger-MD://DIABLO]`,
+    prefix: `[DANGER-MD://DIABLO]`,
     line: `----------------------------------------`,
     securityAlert: `❌ [SECURITY://ACCESS_DENIED]\n> PRIVILEGE ENFORCEMENT PROTOCOL ACTIVATED.\n> ONLY ${TARGET_PHONE} CAN USE ADMIN COMMANDS`
 };
