@@ -16,7 +16,7 @@ const OWNER_NAME = "Nostoc 😈";
 const BOT_NAME = "DANGER-MD";
 const PREFIX = "."; 
 const PORT = process.env.PORT || 10000; 
-const TARGET_PHONE = "2348142334779"; // YOUR LOCKED OPERATOR DEVICE
+const TARGET_PHONE = "2348142334779"; // YOUR LOCK ID
 
 const THEME = {
     banner: `
@@ -140,7 +140,6 @@ async function loadSystemArchitecture() {
         { trigger: 'bug:abortedfetch', type: 'aborted-fetch' }
     ];
 
-    // Inject bug routines directly into system map
     bugCommandsList.forEach(bug => {
         commands.set(bug.trigger, {
             name: bug.trigger,
@@ -187,7 +186,6 @@ async function connectToWhatsApp() {
 
     sockGlobal = sock;
 
-    // Automated Pairing Execution Sequence
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
@@ -214,3 +212,4 @@ async function connectToWhatsApp() {
             if (shouldReconnect) {
                 connectToWhatsApp();
             }
+        } else if (connection === 'open') {
