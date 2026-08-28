@@ -1,34 +1,23 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, Browsers } from '@whiskeysockets/baileys';
 import pino from 'pino';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import 'dotenv/config';
-import express from 'express';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // ==========================================
 // CORE IDENTITY & SECURITY PROTOCOLS - DANGER-MD
 // ==========================================
 const OWNER_NAME = "Nostoc 😈";
 const BOT_NAME = "DANGER-MD";
-const PREFIX = "."; 
-const PORT = process.env.PORT || 10000; 
-// REMOVED TARGET_PHONE LOCK - Now public
-// const TARGET_PHONE = "2348142334779"; 
+const PREFIX = ".";
+const OWNER_NUMBER = process.env.OWNER_NUMBER || "2348142334779"; // Your bot number here
 
 const THEME = {
-    banner: `\n============================================================\n    🔥  D I A B L O   M O D E   A C T I V A T E D  🔥\n============================================================\n[DANGER-MD SYSTEM // VERSION 7.0.0]\n> PUBLIC MODE: ENGAGED\n> AUTHORIZED OPERATOR: ${OWNER_NAME.toUpperCase()}\n------------------------------------------------------------`,
+    banner: `\n============================================================\n 🔥 D I A B L O M O D E A C T I V A T E D 🔥\n============================================================\n[DANGER-MD SYSTEM // VERSION 7.0.0]\n> PUBLIC MODE: ENGAGED\n> AUTHORIZED OPERATOR: ${OWNER_NAME.toUpperCase()}\n------------------------------------------------------------`,
     prefix: `[DANGER-MD://DIABLO]`,
     line: `----------------------------------------`,
     securityAlert: `❌ [SECURITY://ACCESS_DENIED]\n> ONLY OWNER CAN USE ADMIN COMMANDS`
 };
 
-const OWNER_NUMBER = process.env.OWNER_NUMBER || "2348142334779"; // Set in Railway Variables
 const commands = new Map();
-const pendingPairings = new Map(); // store who requested pairing
 
 // ==========================================
 // BUG UTILITY INTERNALS
@@ -65,19 +54,12 @@ function loadSystemArchitecture() {
     commands.set('ping', {
         name: 'ping',
         adminOnly: false,
-        execute: () => `🚀 [DANGER-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nMODE : PUBLIC`
+        execute: () => `🚀 [DANGER-MD://PING]\nLATENCY : ONLINE\nSTATUS : 100%`
     });
 
     const bugs = [
         'test', 'crash', 'leak', 'cpu', 'slow', 'timeout', 'db', 'auth', 'race', 'corrupt',
-        'overflow', 'unhandled', 'env', 'perm', 'deadlock', 'null', 'json', 'dep', 'infinite',
-        'dns', 'fswrite', 'fsread', 'portconflict', 'sslexpired', 'corsblocked', 'evalerror',
-        'rangeerror', 'urierror', 'eventemitter', 'gcfreeze', 'bufferalloc', 'cryptofail',
-        'zliberror', 'childprocess', 'http2error', 'processdisconnect', 'workerterminate',
-        'intlerror', 'asynchooks', 'v8heap', 'readlinefreeze', 'replcrash', 'streamdestroy',
-        'clusterdisconnect', 'netserverfail', 'dgramerror', 'modulenotfound', 'syntaxerror',
-        'typecoercion', 'arraybound', 'asyncdeadlock', 'timeroverflow', 'prototypepollution',
-        'mathprecision', 'abortedfetch'
+        'overflow', 'unhandled', 'env', 'perm', 'deadlock', 'null', 'json', 'dep', 'infinite'
     ];
 
     bugs.forEach(bugName => {
@@ -102,34 +84,34 @@ function loadSystemArchitecture() {
 }
 
 // ==========================================
-// WHATSAPP CONNECTION LOGIC (PAIRING ENGINE)
+// WHATSAPP CONNECTION LOGIC - NUMBER PAIRING
 // ==========================================
-async function connectToWhatsApp(requestedNumber = null) {
+async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false,
+        printQRInTerminal: false, // NO QR
         browser: Browsers.macOS('Safari'),
         auth: state
     });
 
-    if (!sock.authState.creds.registered && requestedNumber) {
+    // NEW: Auto request pairing code if not registered
+    if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
-                const pairingCode = await sock.requestPairingCode(requestedNumber);
+                const pairingCode = await sock.requestPairingCode(OWNER_NUMBER);
                 const formattedCode = pairingCode?.match(/.{1,4}/g)?.join("-") || pairingCode;
-                console.log(`\n============================================================\n🔑 PAIRING CODE FOR ${requestedNumber}: ${formattedCode}\n============================================================`);
-                pendingPairings.set(requestedNumber, formattedCode);
+                console.log(`\n============================================================\n🔑 YOUR WHATSAPP PAIRING CODE: ${formattedCode}\nGo to WhatsApp > Linked Devices > Link with phone number\n============================================================`);
             } catch (err) {
                 console.error('Pairing code generation failed:', err);
             }
-        }, 5000);
+        }, 3000);
     }
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
-            if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+            if (lastDisconnect?.error?.output?.statusCode!== DisconnectReason.loggedOut) {
                 connectToWhatsApp();
             }
         } else if (connection === 'open') {
@@ -145,7 +127,7 @@ async function connectToWhatsApp(requestedNumber = null) {
         if (!msg.message || msg.key.fromMe) return;
 
         const senderNumber = msg.key.remoteJid.replace('@s.whatsapp.net', '');
-        const messageTypes = Object.keys(msg.message); 
+        const messageTypes = Object.keys(msg.message);
         let text = '';
 
         if (messageTypes.includes('conversation')) {
@@ -161,8 +143,7 @@ async function connectToWhatsApp(requestedNumber = null) {
         const command = commands.get(commandName);
         if (!command) return;
 
-        // CHANGED: Only OWNER_NUMBER can use admin commands
-        if (command.adminOnly && senderNumber !== OWNER_NUMBER) {
+        if (command.adminOnly && senderNumber!== OWNER_NUMBER) {
             await sock.sendMessage(msg.key.remoteJid, { text: THEME.securityAlert });
             return;
         }
@@ -174,52 +155,7 @@ async function connectToWhatsApp(requestedNumber = null) {
             console.error('Execution error:', error);
         }
     });
-    return sock;
 }
 
-// ==========================================
-// EXPRESS WEB PANEL FOR PUBLIC PAIRING
-// ==========================================
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({extended: true}));
-
-app.get('/', (req, res) => {
-  let codeDisplay = '';
-  if(pendingPairings.size > 0){
-    const [num, code] = pendingPairings.entries().next().value;
-    codeDisplay = `<p><b>Latest Code for ${num}:</b> ${code}</p>`;
-  }
-  
-  res.send(`
-  <body style="background:#111;color:#0f0;font-family:monospace;text-align:center;padding:40px">
-  <h1>🔥 ${BOT_NAME} PUBLIC PANEL 🔥</h1>
-  <p>Enter any WhatsApp number to get pairing code</p>
-  <form method="POST" action="/pair">
-    <input name="number" placeholder="2348XXXXXXXX" required style="padding:10px;width:250px">
-    <button style="padding:10px">Get Pairing Code</button>
-  </form>
-  ${codeDisplay}
-  <p style="margin-top:20px">${THEME.line}</p>
-  <p>Owner: ${OWNER_NAME}</p>
-  </body>
-  `)
-});
-
-let activeSocket = null;
-app.post('/pair', async (req, res) => {
-  let number = req.body.number.replace(/[^0-9]/g, '');
-  if(!number) return res.send('Invalid number');
-  
-  // Restart connection to generate code for new number
-  if(activeSocket) await activeSocket.ws.close();
-  activeSocket = await connectToWhatsApp(number);
-  
-  res.redirect('/');
-});
-
-app.get('/health', (req, res) => res.send(`${BOT_NAME} Protocol Active. Public Mode`));
-app.listen(PORT, () => console.log(`${THEME.prefix} Web port handling live on ${PORT}`));
-
 loadSystemArchitecture();
-connectToWhatsApp(); // start without number
+connectToWhatsApp();
