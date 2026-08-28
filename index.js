@@ -16,7 +16,7 @@ const OWNER_NAME = "Nostoc 😈";
 const BOT_NAME = "DANGER-MD";
 const PREFIX = "."; 
 const PORT = process.env.PORT || 10000; 
-const TARGET_PHONE = "2348142334779"; // YOUR LOCK ID
+const TARGET_PHONE = "2348142334779"; 
 
 const THEME = {
     banner: `
@@ -34,8 +34,6 @@ const THEME = {
 };
 
 const commands = new Map();
-const cooldowns = new Map();
-let sockGlobal;
 
 // ==========================================
 // BUG UTILITY INTERNALS
@@ -62,10 +60,7 @@ function executeBugSimulation(type) {
 // ==========================================
 // LOAD COMMAND MATRIX
 // ==========================================
-async function loadSystemArchitecture() {
-    const commandsDir = path.join(__dirname, 'commands');
-    if (!fs.existsSync(commandsDir)) fs.mkdirSync(commandsDir);
-
+function loadSystemArchitecture() {
     // Built-in Core
     commands.set('status', {
         name: 'status',
@@ -79,9 +74,7 @@ async function loadSystemArchitecture() {
         execute: () => `🚀 [DANGER-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nTARGET : ${TARGET_PHONE}`
     });
 
-    // ------------------------------------------------------------
-    // THE 55 AUTOMATED BUG COMMAND MATRIX REGISTRY
-    // ------------------------------------------------------------
+    // The 55 Automated Bug Command Matrix Registry
     const bugCommandsList = [
         { trigger: 'bug:test', type: 'test-suite' },
         { trigger: 'bug:crash', type: 'force-crash' },
@@ -184,8 +177,6 @@ async function connectToWhatsApp() {
         auth: state
     });
 
-    sockGlobal = sock;
-
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
@@ -213,3 +204,13 @@ async function connectToWhatsApp() {
                 connectToWhatsApp();
             }
         } else if (connection === 'open') {
+            console.log(`${THEME.prefix} Connection opened successfully! Channel linked to target operator: ${TARGET_PHONE}`);
+        }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        if (!messages || messages.length === 0) return;
+        const msg = messages[0]; 
+        if (!msg.message || msg.key.fromMe) return;
