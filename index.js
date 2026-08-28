@@ -16,16 +16,19 @@ const OWNER_NAME = "Nostoc 😈";
 const BOT_NAME = "DANGER-MD";
 const PREFIX = "."; 
 const PORT = process.env.PORT || 10000; 
-const TARGET_PHONE = "2348142334779"; 
+// REMOVED TARGET_PHONE LOCK - Now public
+// const TARGET_PHONE = "2348142334779"; 
 
 const THEME = {
-    banner: `\n============================================================\n    🔥  D I A B L O   M O D E   A C T I V A T E D  🔥\n============================================================\n[DANGER-MD SYSTEM // VERSION 7.0.0]\n> INTEGRATED ADMIN LOCK: ENGAGED\n> AUTHORIZED OPERATOR: ${OWNER_NAME.toUpperCase()}\n> TARGET NUMBER: ${TARGET_PHONE}\n------------------------------------------------------------`,
+    banner: `\n============================================================\n    🔥  D I A B L O   M O D E   A C T I V A T E D  🔥\n============================================================\n[DANGER-MD SYSTEM // VERSION 7.0.0]\n> PUBLIC MODE: ENGAGED\n> AUTHORIZED OPERATOR: ${OWNER_NAME.toUpperCase()}\n------------------------------------------------------------`,
     prefix: `[DANGER-MD://DIABLO]`,
     line: `----------------------------------------`,
-    securityAlert: `❌ [SECURITY://ACCESS_DENIED]\n> PRIVILEGE ENFORCEMENT PROTOCOL ACTIVATED.\n> ONLY ${TARGET_PHONE} CAN USE ADMIN COMMANDS`
+    securityAlert: `❌ [SECURITY://ACCESS_DENIED]\n> ONLY OWNER CAN USE ADMIN COMMANDS`
 };
 
+const OWNER_NUMBER = process.env.OWNER_NUMBER || "2348142334779"; // Set in Railway Variables
 const commands = new Map();
+const pendingPairings = new Map(); // store who requested pairing
 
 // ==========================================
 // BUG UTILITY INTERNALS
@@ -56,13 +59,13 @@ function loadSystemArchitecture() {
     commands.set('status', {
         name: 'status',
         adminOnly: false,
-        execute: () => `BOT : ${BOT_NAME}\nSTATUS : OPERATIONAL\nINTEGRITY: 100%\nOPERATOR : ${OWNER_NAME}\nNUMBER : ${TARGET_PHONE}`
+        execute: () => `BOT : ${BOT_NAME}\nSTATUS : OPERATIONAL\nINTEGRITY: 100%\nOWNER : ${OWNER_NAME}\nMODE : PUBLIC`
     });
 
     commands.set('ping', {
         name: 'ping',
         adminOnly: false,
-        execute: () => `🚀 [DANGER-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nTARGET : ${TARGET_PHONE}`
+        execute: () => `🚀 [DANGER-MD://PING]\nLATENCY : ${Date.now() - Date.now()}ms\nSTATUS : ONLINE\nMODE : PUBLIC`
     });
 
     const bugs = [
@@ -80,7 +83,7 @@ function loadSystemArchitecture() {
     bugs.forEach(bugName => {
         commands.set(`bug:${bugName}`, {
             name: `bug:${bugName}`,
-            adminOnly: true,
+            adminOnly: true, // ONLY OWNER
             execute: () => executeBugSimulation(bugName)
         });
     });
@@ -91,7 +94,7 @@ function loadSystemArchitecture() {
         execute: () => {
             let menuText = `📜 [${BOT_NAME.toUpperCase()} MENU]\n> ${PREFIX}status\n> ${PREFIX}ping\n> ${PREFIX}menu\n\n🔥 [DIABLO ULTRA-BUG TRIGGERS]\n`;
             bugs.forEach(b => { menuText += `> ${PREFIX}bug:${b}\n`; });
-            return menuText + `\n${THEME.line}\nOperator: ${OWNER_NAME}`;
+            return menuText + `\n${THEME.line}\nOwner: ${OWNER_NAME}`;
         }
     });
 
@@ -101,7 +104,7 @@ function loadSystemArchitecture() {
 // ==========================================
 // WHATSAPP CONNECTION LOGIC (PAIRING ENGINE)
 // ==========================================
-async function connectToWhatsApp() {
+async function connectToWhatsApp(requestedNumber = null) {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
@@ -110,12 +113,13 @@ async function connectToWhatsApp() {
         auth: state
     });
 
-    if (!sock.authState.creds.registered) {
+    if (!sock.authState.creds.registered && requestedNumber) {
         setTimeout(async () => {
             try {
-                const pairingCode = await sock.requestPairingCode(TARGET_PHONE);
+                const pairingCode = await sock.requestPairingCode(requestedNumber);
                 const formattedCode = pairingCode?.match(/.{1,4}/g)?.join("-") || pairingCode;
-                console.log(`\n============================================================\n🔑 YOUR WHATSAPP PAIRING CODE: ${formattedCode}\n============================================================`);
+                console.log(`\n============================================================\n🔑 PAIRING CODE FOR ${requestedNumber}: ${formattedCode}\n============================================================`);
+                pendingPairings.set(requestedNumber, formattedCode);
             } catch (err) {
                 console.error('Pairing code generation failed:', err);
             }
@@ -129,7 +133,7 @@ async function connectToWhatsApp() {
                 connectToWhatsApp();
             }
         } else if (connection === 'open') {
-            console.log(`${THEME.prefix} Connected successfully! Locked to operator: ${TARGET_PHONE}`);
+            console.log(`${THEME.prefix} Connected successfully! Public Mode Active`);
         }
     });
 
@@ -137,7 +141,7 @@ async function connectToWhatsApp() {
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         if (!messages || messages.length === 0) return;
-        const msg = messages[0]; // FIX: Safely extract the message object from the collection array
+        const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
 
         const senderNumber = msg.key.remoteJid.replace('@s.whatsapp.net', '');
@@ -157,7 +161,8 @@ async function connectToWhatsApp() {
         const command = commands.get(commandName);
         if (!command) return;
 
-        if (command.adminOnly && senderNumber !== TARGET_PHONE) {
+        // CHANGED: Only OWNER_NUMBER can use admin commands
+        if (command.adminOnly && senderNumber !== OWNER_NUMBER) {
             await sock.sendMessage(msg.key.remoteJid, { text: THEME.securityAlert });
             return;
         }
@@ -169,14 +174,52 @@ async function connectToWhatsApp() {
             console.error('Execution error:', error);
         }
     });
+    return sock;
 }
 
 // ==========================================
-// EXPRESS KEEP-ALIVE SERVER
+// EXPRESS WEB PANEL FOR PUBLIC PAIRING
 // ==========================================
 const app = express();
-app.get('/', (req, res) => res.send(`${BOT_NAME} Protocol Active for device: ${TARGET_PHONE}`));
-app.listen(PORT, () => console.log(`${THEME.prefix} Web port handling live.`));
+app.use(express.json());
+app.use(express.urlencoded({extended: true}));
+
+app.get('/', (req, res) => {
+  let codeDisplay = '';
+  if(pendingPairings.size > 0){
+    const [num, code] = pendingPairings.entries().next().value;
+    codeDisplay = `<p><b>Latest Code for ${num}:</b> ${code}</p>`;
+  }
+  
+  res.send(`
+  <body style="background:#111;color:#0f0;font-family:monospace;text-align:center;padding:40px">
+  <h1>🔥 ${BOT_NAME} PUBLIC PANEL 🔥</h1>
+  <p>Enter any WhatsApp number to get pairing code</p>
+  <form method="POST" action="/pair">
+    <input name="number" placeholder="2348XXXXXXXX" required style="padding:10px;width:250px">
+    <button style="padding:10px">Get Pairing Code</button>
+  </form>
+  ${codeDisplay}
+  <p style="margin-top:20px">${THEME.line}</p>
+  <p>Owner: ${OWNER_NAME}</p>
+  </body>
+  `)
+});
+
+let activeSocket = null;
+app.post('/pair', async (req, res) => {
+  let number = req.body.number.replace(/[^0-9]/g, '');
+  if(!number) return res.send('Invalid number');
+  
+  // Restart connection to generate code for new number
+  if(activeSocket) await activeSocket.ws.close();
+  activeSocket = await connectToWhatsApp(number);
+  
+  res.redirect('/');
+});
+
+app.get('/health', (req, res) => res.send(`${BOT_NAME} Protocol Active. Public Mode`));
+app.listen(PORT, () => console.log(`${THEME.prefix} Web port handling live on ${PORT}`));
 
 loadSystemArchitecture();
-connectToWhatsApp();
+connectToWhatsApp(); // start without number
