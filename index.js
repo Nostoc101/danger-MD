@@ -10,13 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ==========================================
-// CORE IDENTITY & SECURITY PROTOCOLS - NOSTOC-MD
+// CORE IDENTITY & SECURITY PROTOCOLS - DANGER-MD
 // ==========================================
 const OWNER_NAME = "Nostoc 😈";
 const BOT_NAME = "DANGER-MD";
 const PREFIX = "."; 
 const PORT = process.env.PORT || 10000; 
-const TARGET_PHONE = "2348142334779"; // YOUR LOCKED PHONE IDENTITY
+const TARGET_PHONE = "2348142334779"; // YOUR LOCKED OPERATOR DEVICE
 
 const THEME = {
     banner: `
